@@ -35,22 +35,33 @@
 | Frontend | Vanilla HTML/CSS/JS + Tailwind CSS CDN |
 | Deployment | Docker + Render |
 
-## Quick Start (Docker)
+## Quick Start
 
-The easiest way to run OmniPull locally. Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) and Python 3.12+.
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/OmniPull.git
 cd OmniPull
-docker compose up --build
 ```
 
-Open **http://localhost:8000** — that is it.
+**Windows:**
+```powershell
+.\start.ps1
+```
 
+**Linux / macOS:**
 ```bash
-# Stop
-docker compose down
+chmod +x start.sh && ./start.sh
 ```
+
+That is it. The script will:
+1. Create a `.venv` and install Python dependencies automatically
+2. Start Redis + the web server in Docker
+3. Start the Celery worker **on your host machine** so yt-dlp can read your browser cookies automatically — no manual cookie export needed
+
+Open **http://localhost:8000**.
+
+To stop: press `Ctrl+C` (stops the worker), then `docker compose down`.
 
 ## Manual Setup (without Docker)
 

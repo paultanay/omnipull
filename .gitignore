@@ -52,3 +52,5 @@ node_modules/
 .DS_Store
 ehthumbs.db
 Desktop.ini
+# YouTube/browser cookies - NEVER commit these
+cookies.txt

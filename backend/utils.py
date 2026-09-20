@@ -128,7 +128,7 @@ def normalize_formats(raw_formats: list) -> list:
             asize = best_audio.get("filesize") or best_audio.get("filesize_approx") or 0
             total_size = (vsize + asize) if (vsize and asize) else (vsize or asize or None)
         else:
-            # No separate audio track — use the video format as-is
+            # No separate audio track -- use the video format as-is
             fmt_id = vfmt["format_id"]
             total_size = vfmt.get("filesize") or vfmt.get("filesize_approx")
 
@@ -220,8 +220,55 @@ def normalize_formats(raw_formats: list) -> list:
 
 # --- yt-dlp extraction --------------------------------------------------------
 
+# Browsers yt-dlp can extract cookies from automatically (tried in order)
+_BROWSERS = ["chrome", "brave", "firefox", "edge", "opera", "chromium", "vivaldi", "safari"]
+
+
+def _get_cookie_opts() -> dict:
+    """
+    Return yt-dlp cookie options.
+    Priority:
+      1. COOKIES_BROWSER env var  (e.g. "chrome" or "brave") - explicit override
+      2. Auto-detect: try each browser until one works
+      3. COOKIES_FILE env var / cookies.txt file fallback
+    Returns a dict of extra yt-dlp options (may be empty if nothing available).
+    """
+    # 1. Explicit browser override
+    browser_env = os.getenv("COOKIES_BROWSER", "").strip().lower()
+    if browser_env:
+        return {"cookiesfrombrowser": (browser_env, None, None, None)}
+
+    # 2. Auto-detect installed browsers
+    for browser in _BROWSERS:
+        try:
+            # Test if yt-dlp can access this browser's cookies (quick probe)
+            import yt_dlp.cookies as _yc
+            cookies = _yc.load_cookies_from_browser(browser, None, None, None)
+            if cookies:
+                return {"cookiesfrombrowser": (browser, None, None, None)}
+        except Exception:
+            continue
+
+    # 3. Fallback to cookies.txt file
+    cookie_file = os.getenv("COOKIES_FILE", "").strip()
+    if not cookie_file:
+        # Look for cookies.txt next to this file or at project root
+        for candidate in [
+            Path(__file__).parent.parent / "cookies.txt",
+            Path("/app/cookies.txt"),
+        ]:
+            if candidate.exists() and candidate.stat().st_size > 100:
+                cookie_file = str(candidate)
+                break
+
+    if cookie_file and Path(cookie_file).exists() and Path(cookie_file).stat().st_size > 100:
+        return {"cookiefile": cookie_file}
+
+    return {}
+
+
 def _ydl_opts_info():
-    return {
+    opts = {
         "quiet": True,
         "no_warnings": True,
         "extract_flat": False,
@@ -230,6 +277,8 @@ def _ydl_opts_info():
         "age_limit": None,
         "geo_bypass": True,
     }
+    opts.update(_get_cookie_opts())
+    return opts
 
 
 def extract_media_info(url: str) -> dict:
@@ -344,12 +393,12 @@ def download_media(url: str, format_id: str, file_id: str, progress_callback=Non
         "geo_bypass": True,
         "writethumbnail": False,
         "writeinfojson": False,
-        # postprocessors ensure audio is re-encoded if needed for compatibility
         "postprocessors": [{
             "key": "FFmpegVideoConvertor",
             "preferedformat": "mp4",
         }],
     }
+    ydl_opts.update(_get_cookie_opts())
 
     if progress_callback:
         ydl_opts["progress_hooks"] = [progress_callback]
