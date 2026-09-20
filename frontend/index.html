@@ -1,0 +1,141 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OmniPull - Download Anything</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⬇️</text></svg>" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="logo-icon">⬇</div>
+        <div>
+          <h1 class="text-xl font-bold text-white tracking-tight">OmniPull</h1>
+          <p class="text-xs text-gray-400">Download anything, anywhere</p>
+        </div>
+      </div>
+      <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle dark/light mode">
+        <span id="themeIcon">🌙</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 max-w-3xl mx-auto w-full px-4 py-10">
+
+    <!-- Hero -->
+    <div class="text-center mb-10">
+      <h2 class="text-4xl font-extrabold text-white mb-3 leading-tight">
+        Download Any Video,<br/>Any Platform.
+      </h2>
+      <p class="text-gray-400 text-lg">
+        YouTube · Instagram · Twitter/X · and thousands more. Free, fast, no ads.
+      </p>
+    </div>
+
+    <!-- Platform badges -->
+    <div class="flex justify-center gap-3 mb-8 flex-wrap">
+      <span class="platform-badge youtube">▶ YouTube</span>
+      <span class="platform-badge instagram">📷 Instagram</span>
+      <span class="platform-badge twitter">𝕏 Twitter/X</span>
+      <span class="platform-badge other">+ 1000s more</span>
+    </div>
+
+    <!-- URL Input Card -->
+    <div class="card mb-6">
+      <div class="input-row">
+        <input
+          id="urlInput"
+          type="url"
+          placeholder="Paste a YouTube, Instagram or Twitter link here..."
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+          class="url-input"
+          aria-label="Video URL"
+        />
+        <button id="fetchBtn" class="fetch-btn" onclick="handleFetch()">
+          <span id="fetchBtnText">Fetch</span>
+          <svg id="fetchSpinner" class="spinner hidden" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.416" stroke-dashoffset="10" />
+          </svg>
+        </button>
+      </div>
+      <!-- Error message -->
+      <div id="errorMsg" class="error-msg hidden" role="alert"></div>
+    </div>
+
+    <!-- Result Card (hidden until fetch completes) -->
+    <div id="resultCard" class="card hidden">
+
+      <!-- Media preview -->
+      <div class="media-preview">
+        <div class="thumbnail-wrap">
+          <img id="thumbnail" src="" alt="Thumbnail" class="thumbnail" />
+          <span id="duration" class="duration-badge hidden"></span>
+          <span id="platformBadge" class="platform-overlay"></span>
+        </div>
+        <div class="media-meta">
+          <h3 id="mediaTitle" class="media-title"></h3>
+          <p id="mediaUploader" class="media-uploader hidden"></p>
+          <p id="mediaUrl" class="media-url"></p>
+        </div>
+      </div>
+
+      <!-- Format tabs -->
+      <div class="tabs-row">
+        <button class="tab-btn active" id="tabVideo" onclick="switchTab('video')">
+          🎬 Video
+        </button>
+        <button class="tab-btn" id="tabAudio" onclick="switchTab('audio')">
+          🎵 Audio Only
+        </button>
+      </div>
+
+      <!-- Format list -->
+      <div id="formatListVideo" class="format-list"></div>
+      <div id="formatListAudio" class="format-list hidden"></div>
+
+      <!-- Download button -->
+      <div class="download-section">
+        <button id="downloadBtn" class="download-btn" onclick="handleDownload()" disabled>
+          <span id="downloadBtnText">Select a format above</span>
+        </button>
+      </div>
+
+      <!-- Progress section -->
+      <div id="progressSection" class="hidden">
+        <div class="progress-bar-wrap">
+          <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+        </div>
+        <div class="progress-info">
+          <span id="progressPercent">0%</span>
+          <span id="progressSpeed" class="text-gray-400"></span>
+          <span id="progressEta" class="text-gray-400"></span>
+        </div>
+        <p id="progressStatus" class="text-center text-sm text-gray-400 mt-1"></p>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>OmniPull &mdash; Open source, no ads, no tracking. Built with ❤️ and yt-dlp.</p>
+  </footer>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

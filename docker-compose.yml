@@ -1,0 +1,46 @@
+﻿version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
+    working_dir: /app/backend
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - TMP_DIR=/tmp/omnipull
+    volumes:
+      - tmp_downloads:/tmp/omnipull
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: celery -A celery_app worker --loglevel=info --concurrency=4 --queues=celery
+    working_dir: /app/backend
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - TMP_DIR=/tmp/omnipull
+    volumes:
+      - tmp_downloads:/tmp/omnipull
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  tmp_downloads:
