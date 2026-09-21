@@ -1,11 +1,5 @@
 version: "3.9"
 
-# OmniPull Docker Compose
-# Runs: Redis + FastAPI web server
-# The Celery worker runs on the HOST (not in Docker) so it can
-# access your browser cookies automatically for YouTube downloads.
-# Use start.ps1 (Windows) or start.sh (Linux/Mac) to start everything.
-
 services:
   redis:
     image: redis:7-alpine
@@ -25,10 +19,28 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - REDIS_URL=redis://redis:379/0
+      - REDIS_URL=redis://redis:6379/0
       - TMP_DIR=/tmp/omnipull
+      - COOKIES_FILE=/app/cookies.txt
     volumes:
       - tmp_downloads:/tmp/omnipull
+      - ./cookies.txt:/app/cookies.txt
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: celery -A celery_app worker --loglevel=info --concurrency=4 --queues=celery
+    working_dir: /app/backend
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - TMP_DIR=/tmp/omnipull
+      - COOKIES_FILE=/app/cookies.txt
+    volumes:
+      - tmp_downloads:/tmp/omnipull
+      - ./cookies.txt:/app/cookies.txt
     depends_on:
       redis:
         condition: service_healthy
