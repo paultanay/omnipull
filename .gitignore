@@ -20,6 +20,10 @@ pip-wheel-metadata/
 .env.local
 .env.*.local
 
+# Local browser-session exports
+.runtime/
+youtube-cookies.txt
+
 # Downloaded media (temp files)
 /tmp/
 backend/tmp/

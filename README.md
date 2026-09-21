@@ -6,7 +6,7 @@ OmniPull is a local web application for saving media from supported public links
 
 ## Run locally
 
-Install and start Docker Desktop, then run:
+For public links, install and start Docker Desktop, then run:
 
 ```bash
 docker compose up --build
@@ -14,7 +14,7 @@ docker compose up --build
 
 Open [http://localhost:8000](http://localhost:8000). The first start builds the image; later starts are faster. Stop the application with `Ctrl+C`, or run `docker compose down` from another terminal.
 
-PowerShell users can also run `./start.ps1`. macOS and Linux users can run `./start.sh`.
+On Windows, use the local mode below when a site requires your signed-in browser session.
 
 ## Downloads and storage
 
@@ -33,6 +33,26 @@ docker compose down -v
 ## Supported content
 
 Availability depends on the source site and the specific post. Public, non-restricted media works without account configuration. Private, paid, age-gated, region-restricted, or protected media may be unavailable. Use OmniPull only for content you have permission to save and in accordance with applicable laws and platform terms.
+
+## Windows browser-session mode
+
+Some YouTube links require a session from a browser that is already signed in. On Windows, OmniPull can read that session locally, so there is no cookie export, `.env` setting, or manual file setup.
+
+Install and start Docker Desktop, sign in to YouTube in your browser, then run:
+
+```powershell
+.\start.ps1
+```
+
+The script starts Redis in Docker and runs the web service and worker on Windows, where they can access your browser's encrypted session. It automatically tries Brave, Chrome, Edge, and Firefox. If you use a specific browser, select it directly:
+
+```powershell
+.\start.ps1 -Browser brave
+```
+
+Close the terminal with `Ctrl+C` to stop the local web service and worker. The browser session stays on your computer and is never uploaded or written to a cookie file.
+
+On its first run, the script installs FFmpeg through WinGet when it is not already available. This is needed to combine separate video and audio streams.
 
 ## Development
 

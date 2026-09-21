@@ -24,6 +24,17 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 _redis = redis_client.from_url(REDIS_URL, decode_responses=True)
 
 
+def _friendly_error(error: ValueError, platform: str) -> str:
+    """Turn known source access challenges into useful local guidance."""
+    message = str(error).replace("ERROR: ", "").strip()
+    if platform == "youtube" and "Sign in to confirm you" in message:
+        return (
+            "This YouTube link requires an authenticated session. "
+            "On Windows, stop Docker mode and run .\\start.ps1."
+        )
+    return message
+
+
 @celery_app.task(bind=True, name="fetch_info")
 def fetch_info(self, url: str) -> dict:
     """Extract media info from URL. Returns normalized metadata + format list."""
@@ -36,9 +47,7 @@ def fetch_info(self, url: str) -> dict:
         result = extract_media_info(url)
         return {"status": "success", "data": result}
     except ValueError as e:
-        # Remove the extractor's generic prefix before returning the message.
-        error_msg = str(e).replace("ERROR: ", "").strip()
-        raise ValueError(error_msg)
+        raise ValueError(_friendly_error(e, detect_platform(url)))
 
 
 @celery_app.task(bind=True, name="download_file")
@@ -103,6 +112,7 @@ def download_file(self, url: str, format_id: str, file_id: str) -> dict:
         return {"status": "success", "data": result}
 
     except ValueError as e:
-        error_data = {"status": "error", "message": str(e)}
+        message = _friendly_error(e, platform)
+        error_data = {"status": "error", "message": message}
         _redis.setex(f"progress:{file_id}", 60, str(error_data))
-        raise
+        raise ValueError(message) from e

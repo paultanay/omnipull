@@ -218,13 +218,23 @@ def normalize_formats(raw_formats: list) -> list:
 
 
 def _get_cookie_opts() -> dict:
-    """Return an explicitly configured cookie file when it is valid."""
-    cookie_file = os.getenv("COOKIES_FILE", "").strip()
-    candidate = Path(cookie_file) if cookie_file else None
-    if candidate and candidate.is_file() and candidate.stat().st_size > 0:
-        return {"cookiefile": str(candidate)}
-
+    """Return cookie options for the local browser selected by Windows mode."""
+    browser = os.getenv("COOKIES_BROWSER", "").strip().lower()
+    if browser and browser != "auto":
+        return {"cookiesfrombrowser": (browser, None, None, None)}
+    if browser == "auto":
+        return {"cookiesfrombrowser": ("brave", None, None, None)}
     return {}
+
+
+def _browser_cookie_options() -> list[dict]:
+    """List local browser cookie options when host mode requests auto-detection."""
+    if os.getenv("COOKIES_BROWSER", "").strip().lower() != "auto":
+        return []
+    return [
+        {"cookiesfrombrowser": (browser, None, None, None)}
+        for browser in ("brave", "chrome", "edge", "firefox")
+    ]
 
 
 def _ydl_opts_info():
@@ -248,11 +258,22 @@ def extract_media_info(url: str) -> dict:
     """
     platform = detect_platform(url)
 
-    with yt_dlp.YoutubeDL(_ydl_opts_info()) as ydl:
-        try:
-            info = ydl.extract_info(url, download=False)
-        except yt_dlp.utils.DownloadError as e:
-            raise ValueError(str(e)) from e
+    options = [_ydl_opts_info(), *_browser_cookie_options()]
+    last_error = None
+    for cookie_opts in options:
+        opts = _ydl_opts_info()
+        opts.update(cookie_opts)
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            try:
+                info = ydl.extract_info(url, download=False)
+                break
+            except yt_dlp.utils.DownloadError as error:
+                last_error = error
+                info = None
+    else:
+        if last_error:
+            raise ValueError(str(last_error)) from last_error
+        raise ValueError("Could not extract media info from this URL.")
 
     if info is None:
         raise ValueError("Could not extract media info from this URL.")
@@ -356,16 +377,24 @@ def download_media(url: str, format_id: str, file_id: str, progress_callback=Non
             "preferedformat": "mp4",
         }],
     }
-    ydl_opts.update(_get_cookie_opts())
-
     if progress_callback:
         ydl_opts["progress_hooks"] = [progress_callback]
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        try:
-            ydl.download([url])
-        except yt_dlp.utils.DownloadError as e:
-            raise ValueError(str(e)) from e
+    cookie_options = [_get_cookie_opts(), *_browser_cookie_options()]
+    last_error = None
+    for cookie_opts in cookie_options:
+        options = dict(ydl_opts)
+        options.update(cookie_opts)
+        with yt_dlp.YoutubeDL(options) as ydl:
+            try:
+                ydl.download([url])
+                break
+            except yt_dlp.utils.DownloadError as error:
+                last_error = error
+    else:
+        if last_error:
+            raise ValueError(str(last_error)) from last_error
+        raise ValueError("Could not download this URL.")
 
     # Find the downloaded file (exclude .part files)
     files = [f for f in out_dir.iterdir() if not f.suffix == ".part" and not f.name.endswith(".json")]
