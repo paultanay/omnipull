@@ -1,11 +1,9 @@
-version: "3.9"
+name: omnipull
 
 services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -14,17 +12,16 @@ services:
 
   web:
     build: .
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 1
     working_dir: /app/backend
     ports:
       - "8000:8000"
     environment:
       - REDIS_URL=redis://redis:6379/0
       - TMP_DIR=/tmp/omnipull
-      - COOKIES_FILE=/app/cookies.txt
+      - TMP_RETENTION_SECONDS=1800
     volumes:
-      - tmp_downloads:/tmp/omnipull
-      - ./cookies.txt:/app/cookies.txt
+      - download_cache:/tmp/omnipull
     depends_on:
       redis:
         condition: service_healthy
@@ -32,19 +29,19 @@ services:
 
   worker:
     build: .
-    command: celery -A celery_app worker --loglevel=info --concurrency=4 --queues=celery
+    command: celery -A celery_app worker --loglevel=info --concurrency=2 --queues=celery
     working_dir: /app/backend
     environment:
       - REDIS_URL=redis://redis:6379/0
       - TMP_DIR=/tmp/omnipull
-      - COOKIES_FILE=/app/cookies.txt
+      - TMP_RETENTION_SECONDS=1800
     volumes:
-      - tmp_downloads:/tmp/omnipull
-      - ./cookies.txt:/app/cookies.txt
+      - download_cache:/tmp/omnipull
     depends_on:
       redis:
         condition: service_healthy
     restart: unless-stopped
 
 volumes:
-  tmp_downloads:
+  download_cache:
+    name: omnipull_download_cache

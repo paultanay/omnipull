@@ -1,6 +1,5 @@
 ﻿"""
-OmniPull - Universal Media Downloader
-FastAPI backend with Celery task queue, SSE progress, and file serving.
+OmniPull API, task queue integration, progress updates, and file serving.
 """
 from __future__ import annotations
 
@@ -60,7 +59,7 @@ def check_rate_limit(ip: str, max_requests: int) -> bool:
 # --- App ----------------------------------------------------------------------
 app = FastAPI(
     title="OmniPull",
-    description="Universal media downloader - YouTube, Instagram, Twitter/X and more.",
+    description="Local media download service.",
     version="1.0.0",
 )
 

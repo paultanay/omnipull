@@ -1,6 +1,5 @@
 ﻿"""
-Core media extraction utilities using yt-dlp and instaloader.
-Handles YouTube, Instagram, Twitter/X and thousands of other sites.
+Media extraction and download utilities.
 """
 from __future__ import annotations
 
@@ -218,51 +217,12 @@ def normalize_formats(raw_formats: list) -> list:
     return results
 
 
-# --- yt-dlp extraction --------------------------------------------------------
-
-# Browsers yt-dlp can extract cookies from automatically (tried in order)
-_BROWSERS = ["chrome", "brave", "firefox", "edge", "opera", "chromium", "vivaldi", "safari"]
-
-
 def _get_cookie_opts() -> dict:
-    """
-    Return yt-dlp cookie options.
-    Priority:
-      1. COOKIES_BROWSER env var  (e.g. "chrome" or "brave") - explicit override
-      2. Auto-detect: try each browser until one works
-      3. COOKIES_FILE env var / cookies.txt file fallback
-    Returns a dict of extra yt-dlp options (may be empty if nothing available).
-    """
-    # 1. Explicit browser override
-    browser_env = os.getenv("COOKIES_BROWSER", "").strip().lower()
-    if browser_env:
-        return {"cookiesfrombrowser": (browser_env, None, None, None)}
-
-    # 2. Auto-detect installed browsers
-    for browser in _BROWSERS:
-        try:
-            # Test if yt-dlp can access this browser's cookies (quick probe)
-            import yt_dlp.cookies as _yc
-            cookies = _yc.load_cookies_from_browser(browser, None, None, None)
-            if cookies:
-                return {"cookiesfrombrowser": (browser, None, None, None)}
-        except Exception:
-            continue
-
-    # 3. Fallback to cookies.txt file
+    """Return an explicitly configured cookie file when it is valid."""
     cookie_file = os.getenv("COOKIES_FILE", "").strip()
-    if not cookie_file:
-        # Look for cookies.txt next to this file or at project root
-        for candidate in [
-            Path(__file__).parent.parent / "cookies.txt",
-            Path("/app/cookies.txt"),
-        ]:
-            if candidate.exists() and candidate.stat().st_size > 100:
-                cookie_file = str(candidate)
-                break
-
-    if cookie_file and Path(cookie_file).exists() and Path(cookie_file).stat().st_size > 100:
-        return {"cookiefile": cookie_file}
+    candidate = Path(cookie_file) if cookie_file else None
+    if candidate and candidate.is_file() and candidate.stat().st_size > 0:
+        return {"cookiefile": str(candidate)}
 
     return {}
 
@@ -283,7 +243,7 @@ def _ydl_opts_info():
 
 def extract_media_info(url: str) -> dict:
     """
-    Extract media metadata + available formats from a URL using yt-dlp.
+    Extract media metadata and available formats from a URL.
     Returns a normalized dict ready to send to the frontend.
     """
     platform = detect_platform(url)
@@ -357,8 +317,6 @@ def extract_media_info(url: str) -> dict:
     }
 
 
-# --- yt-dlp download ----------------------------------------------------------
-
 TMP_BASE = Path(os.getenv("TMP_DIR", "/tmp/omnipull"))
 
 
@@ -370,7 +328,7 @@ def get_download_dir(file_id: str) -> Path:
 
 def download_media(url: str, format_id: str, file_id: str, progress_callback=None) -> dict:
     """
-    Download and merge video+audio using yt-dlp + ffmpeg.
+    Download and merge selected video and audio streams.
     format_id can be:
       - "137+140"  (video+audio merge, from our normalize_formats)
       - "bestvideo+bestaudio/best"  (fallback)

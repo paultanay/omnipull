@@ -36,8 +36,7 @@ def fetch_info(self, url: str) -> dict:
         result = extract_media_info(url)
         return {"status": "success", "data": result}
     except ValueError as e:
-        # Pass the raw yt-dlp error through - it's descriptive enough
-        # Strip the verbose "ERROR: " prefix yt-dlp adds
+        # Remove the extractor's generic prefix before returning the message.
         error_msg = str(e).replace("ERROR: ", "").strip()
         raise ValueError(error_msg)
 

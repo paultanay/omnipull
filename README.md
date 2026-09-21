@@ -1,178 +1,65 @@
-﻿<div align="center">
-  <h1>⬇ OmniPull</h1>
-  <p><strong>Universal media downloader — YouTube, Instagram, Twitter/X and 1000+ more sites.</strong></p>
-  <p>No ads. No hidden charges. No tracking. Fully open source.</p>
-  <br/>
-  <img src="https://img.shields.io/badge/python-3.12+-blue?style=flat-square" alt="Python 3.12+"/>
-  <img src="https://img.shields.io/badge/fastapi-0.115-009688?style=flat-square" alt="FastAPI"/>
-  <img src="https://img.shields.io/badge/yt--dlp-latest-red?style=flat-square" alt="yt-dlp"/>
-  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License"/>
-  <img src="https://img.shields.io/badge/docker-ready-2496ED?style=flat-square&logo=docker" alt="Docker"/>
-</div>
+# OmniPull
 
----
+<p align="center"><img src="frontend/logo.svg" width="88" alt="OmniPull logo"></p>
 
-## Features
+OmniPull is a local web application for saving media from supported public links. Paste a link, choose an available format, and let your browser save the completed file.
 
-- **Paste any link** from YouTube, Instagram, Twitter/X or 1000+ other platforms
-- **Preview before downloading** — thumbnail, title, uploader, duration
-- **Choose your quality** — 4K, 1080p, 720p, 480p, 360p, 144p, or audio-only
-- **All video formats include audio** — video+audio streams are merged automatically via ffmpeg
-- **Real-time progress** — live download bar with speed and ETA
-- **Instagram carousel support** — multiple images/videos download as a single zip
-- **Dark & light mode** with system preference detection
-- **Fully mobile responsive**
-- Zero ads, zero rate limits for self-hosted use
+## Run locally
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Backend | FastAPI (Python) + Uvicorn |
-| Task queue | Celery + Redis |
-| Media extraction | yt-dlp (latest) + instaloader |
-| Video merging | ffmpeg |
-| Frontend | Vanilla HTML/CSS/JS + Tailwind CSS CDN |
-| Deployment | Docker + Render |
-
-## Quick Start
-
-Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/) and Python 3.12+.
+Install and start Docker Desktop, then run:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/OmniPull.git
-cd OmniPull
+docker compose up --build
 ```
 
-**Windows:**
-```powershell
-.\start.ps1
-```
+Open [http://localhost:8000](http://localhost:8000). The first start builds the image; later starts are faster. Stop the application with `Ctrl+C`, or run `docker compose down` from another terminal.
 
-**Linux / macOS:**
-```bash
-chmod +x start.sh && ./start.sh
-```
+PowerShell users can also run `./start.ps1`. macOS and Linux users can run `./start.sh`.
 
-That is it. The script will:
-1. Create a `.venv` and install Python dependencies automatically
-2. Start Redis + the web server in Docker
-3. Start the Celery worker **on your host machine** so yt-dlp can read your browser cookies automatically — no manual cookie export needed
+## Downloads and storage
 
-Open **http://localhost:8000**.
+The application temporarily stores a file inside its private Docker volume while it is being prepared. Once it is ready, the browser receives it as a normal attachment download. The file is saved to the browser's configured Downloads folder.
 
-To stop: press `Ctrl+C` (stops the worker), then `docker compose down`.
+Websites cannot force a browser's native folder picker. To choose a location for every download, turn on the browser setting usually named **Ask where to save each file before downloading**. This is a browser privacy restriction, not a Docker limitation.
 
-## Manual Setup (without Docker)
+Temporary files are retained for 30 minutes and are cleaned up automatically. The only Docker volume created by this project is named `omnipull_download_cache`.
 
-### Prerequisites
-
-- Python 3.12+
-- Redis (local install or via Docker)
-- ffmpeg installed and on your PATH
-
-### Steps
+To remove the application and its temporary cache:
 
 ```bash
-# 1. Clone
-git clone https://github.com/YOUR_USERNAME/OmniPull.git
-cd OmniPull
-
-# 2. Create virtual environment
-python -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-# macOS / Linux
-source .venv/bin/activate
-
-# 3. Install dependencies
-pip install -r backend/requirements.txt
-
-# 4. Start Redis (pick one)
-redis-server                              # if installed locally
-docker run -p 6379:6379 redis:7-alpine   # or via Docker
-
-# 5. Start the API server (terminal 1)
-cd backend
-uvicorn main:app --reload
-
-# 6. Start the Celery worker (terminal 2, venv active)
-cd backend
-celery -A celery_app worker --loglevel=info --concurrency=4
+docker compose down -v
 ```
 
-Open **http://localhost:8000**.
+## Supported content
 
-## Deploy to Render (Free)
+Availability depends on the source site and the specific post. Public, non-restricted media works without account configuration. Private, paid, age-gated, region-restricted, or protected media may be unavailable. Use OmniPull only for content you have permission to save and in accordance with applicable laws and platform terms.
 
-1. Push this repo to GitHub
-2. Go to [render.com](https://render.com) → **New** → **Blueprint**
-3. Connect your GitHub repo — Render auto-detects `render.yaml`
-4. It will provision a web service + free Redis instance automatically
-5. Your app is live at `https://omnipull-xxxx.onrender.com`
+## Development
 
-> **Note:** The Render free tier spins down after 15 min of inactivity. First request after idle takes ~60 seconds to wake up. Upgrade to a paid plan to avoid this.
+The project has three small parts:
 
-## Environment Variables
-
-Copy `.env.example` to `.env` for local development:
-
-```bash
-cp .env.example .env
+```text
+backend/                API, queue tasks, download handling, and cleanup
+frontend/               Static browser interface and local brand assets
+docker-compose.yml      Local services and shared temporary storage
 ```
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis broker URL |
-| `TMP_DIR` | `/tmp/omnipull` | Temp directory for downloads |
-| `PORT` | `8000` | Server port |
+For a non-container development environment, install Python 3.12+, Redis, and FFmpeg; install `backend/requirements.txt`; then run the API and worker from `backend/` with the same `REDIS_URL` and `TMP_DIR` values.
 
-## Project Structure
+## API
 
-```
-OmniPull/
-├── backend/
-│   ├── main.py           # FastAPI app — all API routes, rate limiting, SSE
-│   ├── tasks.py          # Celery tasks — fetch_info, download_file
-│   ├── celery_app.py     # Celery + Redis configuration
-│   ├── utils.py          # yt-dlp wrapper, format normalizer, instaloader fallback
-│   ├── cleanup.py        # APScheduler — deletes temp files after 10 min
-│   └── requirements.txt
-├── frontend/
-│   ├── index.html        # Single-page UI
-│   ├── style.css         # Design system — dark/light themes, glassmorphism
-│   └── app.js            # Fetch flow, format picker, SSE progress, download
-├── Dockerfile            # Production container (Python + ffmpeg + supervisord)
-├── docker-compose.yml    # Local dev — web + worker + redis
-├── supervisord.conf      # Runs FastAPI + Celery in one container on Render
-├── render.yaml           # One-click Render deploy
-└── .env.example          # Environment variable template
-```
-
-## API Reference
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/health` | Health check |
-| `POST` | `/api/fetch` | Submit URL → returns `task_id` |
-| `GET` | `/api/task/{task_id}` | Poll task status and result |
-| `POST` | `/api/download` | Start download → returns `task_id` + `file_id` |
-| `GET` | `/api/progress/{file_id}` | SSE stream: `{percent, speed, eta, status}` |
-| `GET` | `/api/file/{file_id}` | Stream the downloaded file to browser |
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Service health check |
+| `POST` | `/api/fetch` | Queue link inspection |
+| `GET` | `/api/task/{task_id}` | Read task status or result |
+| `POST` | `/api/download` | Queue file preparation |
+| `GET` | `/api/progress/{file_id}` | Read download progress |
+| `GET` | `/api/file/{file_id}` | Download the prepared file |
 
 ## Contributing
 
-Pull requests are welcome. For major changes, open an issue first.
-
-1. Fork the repo
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit your changes: `git commit -m "feat: add your feature"`
-4. Push and open a PR
-
-## Legal
-
-OmniPull is a tool for downloading publicly available media for **personal use**. Always respect copyright law and the Terms of Service of the platforms you use. The developers are not responsible for misuse.
+Open an issue before substantial changes, keep pull requests focused, and include verification details. Do not commit downloaded media, credentials, or local environment files.
 
 ## License
 

@@ -5,6 +5,7 @@ Runs every 5 minutes, deletes dirs older than 10 minutes.
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import time
 from pathlib import Path
@@ -13,8 +14,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 logger = logging.getLogger(__name__)
 
-TMP_BASE = Path("/tmp/omnipull")
-MAX_AGE_SECONDS = 600  # 10 minutes
+TMP_BASE = Path(os.getenv("TMP_DIR", "/tmp/omnipull"))
+MAX_AGE_SECONDS = int(os.getenv("TMP_RETENTION_SECONDS", "1800"))
 
 
 def cleanup_old_files() -> None:
