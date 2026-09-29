@@ -36,9 +36,6 @@ backend/tmp/
 .DS_Store
 Thumbs.db
 
-# Docker
-.dockerignore
-
 # Logs
 *.log
 celerybeat-schedule

@@ -3,8 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="OmniPull helps you save media from supported public links.">
-  <title>OmniPull</title>
+  <meta name="description" content="OmniPull is a local-first, self-hosted media downloader for supported public video and audio links, with format selection and live progress.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="OmniPull — Local-first media downloader">
+  <meta property="og:description" content="Download supported public media locally with format selection and live progress.">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="OmniPull — Local-first media downloader">
+  <meta name="twitter:description" content="Download supported public media locally with format selection and live progress.">
+  <title>OmniPull — Local-first media downloader</title>
   <link rel="icon" type="image/svg+xml" href="logo.svg">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -14,6 +21,16 @@
     <section class="hero" aria-labelledby="page-title"><p class="eyebrow">Media downloader</p><h1 id="page-title">Save the media you need.</h1><p>Paste a supported public link, review the available formats, and download the file through your browser.</p></section>
     <section class="card intake-card" aria-label="Media link"><div class="input-row"><input id="urlInput" type="url" placeholder="Paste a public media link" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Media URL"><button id="fetchBtn" class="fetch-btn" onclick="handleFetch()"><span id="fetchBtnText">Continue</span><svg id="fetchSpinner" class="spinner hidden" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31.416" stroke-dashoffset="10" /></svg></button></div><p class="input-hint">Your browser controls the download folder. Enable “Ask where to save each file” in browser settings if you want a location prompt every time.</p><div id="errorMsg" class="error-msg hidden" role="alert"></div></section>
     <section id="resultCard" class="card hidden" aria-live="polite"><div class="media-preview"><div class="thumbnail-wrap"><img id="thumbnail" src="" alt="Media thumbnail" class="thumbnail"><span id="duration" class="duration-badge hidden"></span><span id="platformBadge" class="platform-overlay"></span></div><div class="media-meta"><h2 id="mediaTitle" class="media-title"></h2><p id="mediaUploader" class="media-uploader hidden"></p><p id="mediaUrl" class="media-url"></p></div></div><div class="tabs-row" role="tablist" aria-label="Format type"><button class="tab-btn active" id="tabVideo" onclick="switchTab('video')" role="tab">Video</button><button class="tab-btn" id="tabAudio" onclick="switchTab('audio')" role="tab">Audio</button></div><div id="formatListVideo" class="format-list"></div><div id="formatListAudio" class="format-list hidden"></div><div class="download-section"><button id="downloadBtn" class="download-btn" onclick="handleDownload()" disabled><span id="downloadBtnText">Select a format</span></button></div><div id="progressSection" class="hidden"><div class="progress-bar-wrap"><div id="progressBar" class="progress-bar" style="width: 0%"></div></div><div class="progress-info"><span id="progressPercent">0%</span><span id="progressSpeed"></span><span id="progressEta"></span></div><p id="progressStatus" class="progress-status">Preparing download</p></div></section>
+    <section class="about" aria-labelledby="about-title">
+      <p class="eyebrow">Built for your machine</p>
+      <h2 id="about-title">A straightforward local media workflow.</h2>
+      <div class="about-grid">
+        <article><h3>Choose deliberately</h3><p>Review available video and audio formats before a file is prepared.</p></article>
+        <article><h3>Keep the flow visible</h3><p>Long-running downloads move through a background queue with live progress.</p></article>
+        <article><h3>Run it locally</h3><p>Docker starts the default stack on localhost, with temporary files cleaned up automatically.</p></article>
+      </div>
+      <p class="responsible-use">OmniPull is for content you are permitted to save. Source availability depends on the public link and the source site.</p>
+    </section>
   </main>
   <footer class="footer"><span>OmniPull</span><span>Use only with content you are permitted to save.</span></footer><div id="toast" class="toast hidden" role="status" aria-live="polite"></div><script src="app.js"></script>
 </body>

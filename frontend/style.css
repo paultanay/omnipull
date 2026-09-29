@@ -562,3 +562,13 @@ body {
 button:focus-visible, input:focus-visible, .format-card:focus-visible { outline: 3px solid var(--input-focus); outline-offset: 3px; }
 @keyframes reveal { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+
+/* -- Product context -------------------------------------------------------- */
+.about { margin: 68px 0 10px; padding-top: 46px; border-top: 1px solid var(--card-border); }
+.about h2 { margin: 10px 0 26px; font-size: clamp(1.7rem, 4vw, 2.4rem); letter-spacing: -.04em; line-height: 1.12; }
+.about-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.about article { padding: 18px; border: 1px solid var(--card-border); border-radius: 14px; background: var(--card-bg); }
+.about h3 { margin-bottom: 8px; font-size: 14px; }
+.about article p, .responsible-use { color: var(--text-muted); font-size: 13px; line-height: 1.55; }
+.responsible-use { margin: 18px 2px 0; }
+@media (max-width: 600px) { .about { margin-top: 48px; } .about-grid { grid-template-columns: 1fr; } }

@@ -3,10 +3,13 @@ Media extraction and download utilities.
 """
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
+import socket
 import zipfile
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import yt_dlp
 
@@ -39,8 +42,68 @@ def detect_platform(url: str) -> str:
     return "other"
 
 
+MAX_URL_LENGTH = 2_048
+
+
+def _is_public_address(address: str) -> bool:
+    """Return whether an address is globally routable.
+
+    This deliberately rejects loopback, private, link-local, multicast and
+    documentation ranges.  OmniPull fetches user-provided URLs, so accepting
+    an internal address would turn it into a local-network request proxy.
+    """
+    try:
+        return ipaddress.ip_address(address).is_global
+    except ValueError:
+        return False
+
+
+def _host_resolves_publicly(hostname: str, port: int) -> bool:
+    """Require every current DNS answer for a hostname to be public.
+
+    DNS can change after this check, so this is defence in depth rather than a
+    substitute for network-level egress restrictions in a public deployment.
+    """
+    try:
+        answers = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
+    except OSError:
+        return False
+    return bool(answers) and all(_is_public_address(answer[4][0]) for answer in answers)
+
+
 def validate_url(url: str) -> bool:
-    return bool(re.match(r"https?://", url, re.IGNORECASE))
+    """Validate an HTTP(S) URL that may be fetched by yt-dlp.
+
+    URLs with credentials, unusual ports, malformed hosts, or internal
+    destinations are rejected before they reach a worker.
+    """
+    if not isinstance(url, str) or not url or len(url) > MAX_URL_LENGTH:
+        return False
+
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except ValueError:
+        return False
+
+    if parsed.scheme.lower() not in {"http", "https"}:
+        return False
+    if not parsed.netloc or parsed.username or parsed.password:
+        return False
+
+    hostname = parsed.hostname
+    if not hostname or any(char.isspace() for char in hostname):
+        return False
+
+    expected_port = 443 if parsed.scheme.lower() == "https" else 80
+    if port is not None and port != expected_port:
+        return False
+
+    if _is_public_address(hostname):
+        return True
+    if hostname.replace(".", "").isdigit():
+        return False
+    return _host_resolves_publicly(hostname, expected_port)
 
 
 # --- Format helpers -----------------------------------------------------------

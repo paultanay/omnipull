@@ -1,0 +1,26 @@
+name: Bug report
+description: Report a reproducible problem in OmniPull.
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened?
+      description: Include expected and actual behaviour. Do not include private URLs, credentials, or browser data.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start OmniPull with ...
+        2. Use a public, non-sensitive example URL ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: OmniPull version or commit
+  - type: dropdown
+    attributes:
+      label: Installation mode
+      options: [Docker Compose, Windows browser-session mode, Development]

@@ -5,8 +5,6 @@ Celery tasks for OmniPull.
 """
 from __future__ import annotations
 
-import ast
-import json
 import os
 
 import redis as redis_client
