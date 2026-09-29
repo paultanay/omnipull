@@ -326,7 +326,9 @@ async function handleDownload() {
     startProgressStream(currentFileId);
 
     // Poll for task completion
-    await poll(taskId, 2000, 300);
+    // Long videos may take well over ten minutes to download and merge.
+    // The Celery result is the source of truth for when a file is ready.
+    await poll(taskId, 2000, 3600);
 
     // Trigger browser download
     triggerDownload(currentFileId);
@@ -360,7 +362,7 @@ function startProgressStream(fileId) {
     try {
       const data = JSON.parse(event.data);
       updateProgress(data);
-      if (data.status === 'complete' || data.status === 'done' || data.status === 'error') {
+      if (data.status === 'complete' || data.status === 'error') {
         progressEventSource.close();
         progressEventSource = null;
       }
@@ -393,7 +395,6 @@ function updateProgress(data) {
     processing: 'Processing & merging...',
     complete: 'Complete!',
     error: 'Error occurred',
-    done: 'Done',
   };
   document.getElementById('progressStatus').textContent = statusMap[data.status] || data.status || '';
 }
