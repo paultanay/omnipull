@@ -10,17 +10,16 @@ import os
 import time
 import uuid
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator
 
 import redis as redis_client
-from apscheduler.schedulers.background import BackgroundScheduler
 from celery.result import AsyncResult
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from celery_app import celery_app
 from cleanup import start_cleanup_scheduler
@@ -56,46 +55,49 @@ def check_rate_limit(ip: str, max_requests: int) -> bool:
     return True
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    """Prepare temporary storage and stop the cleanup scheduler on shutdown."""
+    TMP_BASE.mkdir(parents=True, exist_ok=True)
+    scheduler = start_cleanup_scheduler()
+    logger.info("OmniPull started.")
+    try:
+        yield
+    finally:
+        scheduler.shutdown(wait=False)
+
+
 # --- App ----------------------------------------------------------------------
 app = FastAPI(
     title="OmniPull",
     description="Local media download service.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# The bundled frontend is served from this application, so it needs no CORS.
+# Opt in explicitly when developing a separate frontend; never use a wildcard
+# for an application that can initiate downloads on behalf of its caller.
+cors_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "").split(",") if origin.strip()]
+if cors_origins:
+    from fastapi.middleware.cors import CORSMiddleware
 
-# --- Startup / Shutdown -------------------------------------------------------
-_scheduler: BackgroundScheduler | None = None
-
-
-@app.on_event("startup")
-async def startup_event() -> None:
-    global _scheduler
-    TMP_BASE.mkdir(parents=True, exist_ok=True)
-    _scheduler = start_cleanup_scheduler()
-    logger.info("OmniPull started.")
-
-
-@app.on_event("shutdown")
-async def shutdown_event() -> None:
-    if _scheduler:
-        _scheduler.shutdown(wait=False)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type"],
+    )
 
 
 # --- Models -------------------------------------------------------------------
 class FetchRequest(BaseModel):
-    url: str
+    url: str = Field(min_length=1, max_length=2048)
 
 
 class DownloadRequest(BaseModel):
-    url: str
-    format_id: str
+    url: str = Field(min_length=1, max_length=2048)
+    format_id: str = Field(min_length=1, max_length=256)
     file_id: str | None = None
 
 
@@ -163,7 +165,13 @@ async def api_download(request: Request, body: DownloadRequest) -> dict:
     url = body.url.strip()
     if not validate_url(url):
         raise HTTPException(status_code=400, detail="Invalid URL.")
-    file_id = body.file_id or str(uuid.uuid4())
+    if body.file_id:
+        try:
+            file_id = str(uuid.UUID(body.file_id))
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail="Invalid file ID.") from error
+    else:
+        file_id = str(uuid.uuid4())
     task = download_file.delay(url, body.format_id, file_id)
     return {"task_id": task.id, "file_id": file_id, "status": "pending"}
 
@@ -171,6 +179,10 @@ async def api_download(request: Request, body: DownloadRequest) -> dict:
 # --- SSE Progress -------------------------------------------------------------
 @app.get("/api/progress/{file_id}")
 async def api_progress(file_id: str) -> StreamingResponse:
+    try:
+        file_id = str(uuid.UUID(file_id))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail="Invalid file ID.") from error
     async def event_stream() -> AsyncGenerator[str, None]:
         import asyncio
         last_data = None
@@ -204,8 +216,10 @@ async def api_progress(file_id: str) -> StreamingResponse:
 # --- File serving -------------------------------------------------------------
 @app.get("/api/file/{file_id}")
 async def api_serve_file(file_id: str) -> FileResponse:
-    if ".." in file_id or "/" in file_id or "\\" in file_id:
-        raise HTTPException(status_code=400, detail="Invalid file ID.")
+    try:
+        file_id = str(uuid.UUID(file_id))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail="Invalid file ID.") from error
 
     file_dir = TMP_BASE / file_id
     if not file_dir.exists():

@@ -2,84 +2,122 @@
 
 <p align="center"><img src="frontend/logo.svg" width="88" alt="OmniPull logo"></p>
 
-OmniPull is a local web application for saving media from supported public links. Paste a link, choose an available format, and let your browser save the completed file.
+<p align="center"><strong>A local-first media downloader for supported public links.</strong><br>Built with FastAPI, Celery, Redis, yt-dlp, and FFmpeg.</p>
 
-## Run locally
+OmniPull turns a supported public media link into a browser download without sending it through a hosted downloader. Paste a URL, inspect available video or audio formats, and follow its progress in a clean local web interface.
 
-For public links, install and start Docker Desktop, then run:
+> Use OmniPull only for media you are authorized to save and in accordance with applicable law and platform terms.
+
+## Why OmniPull
+
+- **Local-first:** runs on your machine and serves the browser interface locally.
+- **Useful format choices:** select a video quality or an audio-only stream before downloading.
+- **Visible progress:** downloads run in background workers with live progress updates.
+- **Docker-first:** one command starts the default local setup.
+- **Temporary by design:** prepared files are removed automatically after the retention period.
+- **Windows session support:** optional local mode can use a signed-in browser session without exporting cookie files.
+
+## Quick start
+
+Install and start [Docker Desktop](https://www.docker.com/products/docker-desktop/), then run:
 
 ```bash
+git clone https://github.com/paultanay/omnipull.git
+cd omnipull
 docker compose up --build
 ```
 
-Open [http://localhost:8000](http://localhost:8000). The first start builds the image; later starts are faster. Stop the application with `Ctrl+C`, or run `docker compose down` from another terminal.
+Open [http://localhost:8000](http://localhost:8000). The Compose configuration binds the web service to `127.0.0.1`, keeping it off the local network by default.
 
-On Windows, use the local mode below when a site requires your signed-in browser session.
-
-## Downloads and storage
-
-The application temporarily stores a file inside its private Docker volume while it is being prepared. Once it is ready, the browser receives it as a normal attachment download. The file is saved to the browser's configured Downloads folder.
-
-Websites cannot force a browser's native folder picker. To choose a location for every download, turn on the browser setting usually named **Ask where to save each file before downloading**. This is a browser privacy restriction, not a Docker limitation.
-
-Temporary files are retained for 30 minutes and are cleaned up automatically. The only Docker volume created by this project is named `omnipull_download_cache`.
-
-To remove the application and its temporary cache:
+Stop it with `Ctrl+C`, or run `docker compose down`. To also remove the temporary download cache, run:
 
 ```bash
 docker compose down -v
 ```
 
-## Supported content
+## How it works
 
-Availability depends on the source site and the specific post. Public, non-restricted media works without account configuration. Private, paid, age-gated, region-restricted, or protected media may be unavailable. Use OmniPull only for content you have permission to save and in accordance with applicable laws and platform terms.
+```text
+Browser → FastAPI → Redis queue → Celery worker → yt-dlp + FFmpeg → browser download
+```
+
+The worker temporarily writes the prepared file to its private cache. Once ready, your browser downloads it to its configured Downloads folder. A website cannot force the browser's native location picker; enable **Ask where to save each file** in your browser if you want to choose a location every time.
+
+## Sources and compatibility
+
+OmniPull provides a focused interface for public media links. YouTube, Instagram, and X/Twitter are recognised in the interface; the underlying yt-dlp engine supports many more extractors. Actual availability depends on the source and the post, and can change when a source site changes.
+
+Private, paid, age-gated, region-restricted, or otherwise protected content may not be available. OmniPull does not bypass access controls.
 
 ## Windows browser-session mode
 
-Some YouTube links require a session from a browser that is already signed in. On Windows, OmniPull can read that session locally, so there is no cookie export, `.env` setting, or manual file setup.
-
-Install and start Docker Desktop, sign in to YouTube in your browser, then run:
+When a source requires a session from a browser already signed in on Windows, run:
 
 ```powershell
 .\start.ps1
 ```
 
-The script starts Redis in Docker and runs the web service and worker on Windows, where they can access your browser's encrypted session. It automatically tries Brave, Chrome, Edge, and Firefox. If you use a specific browser, select it directly:
+The script starts Redis in Docker and runs the web service and worker on Windows, where they can access your browser's encrypted session. It tries Brave, Chrome, Edge, and Firefox automatically. Select a browser explicitly when needed:
 
 ```powershell
 .\start.ps1 -Browser brave
 ```
 
-Close the terminal with `Ctrl+C` to stop the local web service and worker. The browser session stays on your computer and is never uploaded or written to a cookie file.
+The session stays on your computer; it is not uploaded or written to a cookie file. FFmpeg is installed through WinGet on first use when necessary.
 
-On its first run, the script installs FFmpeg through WinGet when it is not already available. This is needed to combine separate video and audio streams.
+## Deployment and security
+
+The default setup is intentionally for a single local user. Do **not** expose it directly to the internet: a media-downloading service needs access control, network egress controls, and a reverse proxy appropriate to its environment.
+
+OmniPull rejects non-HTTP(S), credentialed, non-standard-port, and currently non-public URL targets before sending work to a worker. This is a useful guardrail, not a replacement for network-level SSRF protection; see [deployment guidance](docs/deployment.md) before any shared or remote deployment.
+
+To develop a separately served frontend, explicitly set its origin rather than opening CORS to the world:
+
+```env
+CORS_ORIGINS=http://localhost:5173
+```
 
 ## Development
 
-The project has three small parts:
-
 ```text
-backend/                API, queue tasks, download handling, and cleanup
-frontend/               Static browser interface and local brand assets
-docker-compose.yml      Local services and shared temporary storage
+backend/       FastAPI API, Celery tasks, validation, cleanup
+frontend/      Static interface and local brand assets
+tests/         Fast, isolated API and validation coverage
+docs/          Deployment and contributor documentation
 ```
 
-For a non-container development environment, install Python 3.12+, Redis, and FFmpeg; install `backend/requirements.txt`; then run the API and worker from `backend/` with the same `REDIS_URL` and `TMP_DIR` values.
+For non-container development, install Python 3.12+, Redis, and FFmpeg; install `backend/requirements.txt`; then run the API and worker from `backend/` with matching `REDIS_URL` and `TMP_DIR` values.
+
+Run the checks with:
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest
+ruff check backend tests
+```
 
 ## API
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `GET` | `/health` | Service health check |
-| `POST` | `/api/fetch` | Queue link inspection |
+| `POST` | `/api/fetch` | Queue media inspection |
 | `GET` | `/api/task/{task_id}` | Read task status or result |
 | `POST` | `/api/download` | Queue file preparation |
 | `GET` | `/api/progress/{file_id}` | Read download progress |
-| `GET` | `/api/file/{file_id}` | Download the prepared file |
+| `GET` | `/api/file/{file_id}` | Download a prepared file |
+
+## Roadmap
+
+The next product work should earn its complexity: persistent queue/history, cancellation and retry, playlist selection, and a mobile share flow. See [open issues](https://github.com/paultanay/omnipull/issues) for work that has been accepted into the project.
 
 ## Contributing
 
-Open an issue before substantial changes, keep pull requests focused, and include verification details. Do not commit downloaded media, credentials, or local environment files.
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), keep pull requests focused, and include verification details. Do not commit downloaded media, credentials, or local environment files.
+
+## Security
+
+Please report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). Do not open a public issue for a suspected vulnerability.
 
 ## License
 
