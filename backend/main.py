@@ -186,7 +186,10 @@ async def api_progress(file_id: str) -> StreamingResponse:
     async def event_stream() -> AsyncGenerator[str, None]:
         import asyncio
         last_data = None
-        timeout = 300
+        # Large media downloads and FFmpeg post-processing can legitimately
+        # take longer than five minutes. Keep this connection open while the
+        # browser polls the authoritative Celery task state.
+        timeout = 7_200
         elapsed = 0
         interval = 1.0
 
@@ -203,8 +206,6 @@ async def api_progress(file_id: str) -> StreamingResponse:
                     break
             await asyncio.sleep(interval)
             elapsed += interval
-
-        yield 'data: {"status": "done"}\n\n'
 
     return StreamingResponse(
         event_stream(),
@@ -239,7 +240,6 @@ async def api_serve_file(file_id: str) -> FileResponse:
         path=str(filepath),
         filename=filepath.name,
         media_type="application/octet-stream",
-        headers={"Content-Disposition": f'attachment; filename="{filepath.name}"'},
     )
 
 

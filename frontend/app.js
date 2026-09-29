@@ -14,7 +14,7 @@ let activeTab = 'video';
 (function initTheme() {
   const saved = localStorage.getItem('omnipull-theme') || 'dark';
   document.documentElement.setAttribute('data-theme', saved);
-  document.getElementById('themeIcon').textContent = saved === 'dark' ? '🌙' : '☀️';
+  document.getElementById('themeIcon').textContent = saved === 'dark' ? '◐' : '◑';
 })();
 
 document.getElementById('themeToggle').addEventListener('click', () => {
@@ -22,7 +22,7 @@ document.getElementById('themeToggle').addEventListener('click', () => {
   const next = current === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('omnipull-theme', next);
-  document.getElementById('themeIcon').textContent = next === 'dark' ? '🌙' : '☀️';
+  document.getElementById('themeIcon').textContent = next === 'dark' ? '◐' : '◑';
 });
 
 // -- Utilities ----------------------------------------------------------------
@@ -54,7 +54,7 @@ function setFetchLoading(loading) {
   const text = document.getElementById('fetchBtnText');
   const spinner = document.getElementById('fetchSpinner');
   btn.disabled = loading;
-  text.textContent = loading ? 'Fetching...' : 'Fetch';
+  text.textContent = loading ? 'Inspecting...' : 'Inspect link';
   spinner.classList.toggle('hidden', !loading);
 }
 
@@ -279,7 +279,7 @@ function selectFormat(el, fmtJson) {
 
   const downloadBtn = document.getElementById('downloadBtn');
   downloadBtn.disabled = false;
-  document.getElementById('downloadBtnText').textContent = `⬇ Download ${selectedFormat?.quality_label || ''} · ${(selectedFormat?.ext || '').toUpperCase()}`;
+  document.getElementById('downloadBtnText').textContent = `Download ${selectedFormat?.quality_label || ''} · ${(selectedFormat?.ext || '').toUpperCase()}`;
 }
 
 // -- Tab switching ------------------------------------------------------------
@@ -326,16 +326,18 @@ async function handleDownload() {
     startProgressStream(currentFileId);
 
     // Poll for task completion
-    await poll(taskId, 2000, 300);
+    // Long videos may take well over ten minutes to download and merge.
+    // The Celery result is the source of truth for when a file is ready.
+    await poll(taskId, 2000, 3600);
 
     // Trigger browser download
     triggerDownload(currentFileId);
     showToast('Download started! Check your Downloads folder.', 'success');
-    document.getElementById('downloadBtnText').textContent = `⬇ Download ${selectedFormat?.quality_label || ''} · ${(selectedFormat?.ext || '').toUpperCase()}`;
+    document.getElementById('downloadBtnText').textContent = `Download ${selectedFormat?.quality_label || ''} · ${(selectedFormat?.ext || '').toUpperCase()}`;
 
   } catch (e) {
     showToast(e.message || 'Download failed. Please try again.', 'error');
-    document.getElementById('downloadBtnText').textContent = `⬇ Download ${selectedFormat?.quality_label || ''} · ${(selectedFormat?.ext || '').toUpperCase()}`;
+    document.getElementById('downloadBtnText').textContent = `Download ${selectedFormat?.quality_label || ''} · ${(selectedFormat?.ext || '').toUpperCase()}`;
     progressSection.classList.add('hidden');
   } finally {
     downloadBtn.disabled = false;
@@ -360,7 +362,7 @@ function startProgressStream(fileId) {
     try {
       const data = JSON.parse(event.data);
       updateProgress(data);
-      if (data.status === 'complete' || data.status === 'done' || data.status === 'error') {
+      if (data.status === 'complete' || data.status === 'error') {
         progressEventSource.close();
         progressEventSource = null;
       }
@@ -393,7 +395,6 @@ function updateProgress(data) {
     processing: 'Processing & merging...',
     complete: 'Complete!',
     error: 'Error occurred',
-    done: 'Done',
   };
   document.getElementById('progressStatus').textContent = statusMap[data.status] || data.status || '';
 }
