@@ -4,5 +4,5 @@ celery[redis]==5.4.0
 redis==5.2.1
 yt-dlp
 instaloader==4.13.1
-apscheduler==3.10.4
+apscheduler==3.11.3
 python-multipart==0.0.20
